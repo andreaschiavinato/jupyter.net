@@ -16,5 +16,17 @@
                 VerticalAlignment="Bottom"
                 HorizontalAlignment="Right"
                 Click="OkButton_Click">Ok</Button>
+        <TextBlock HorizontalAlignment="Left" Margin="10,263,0,0" TextWrapping="Wrap" Text="Copyright (c) 2019 Andrea Schiavinato" VerticalAlignment="Top" Width="289" Foreground="White"/>
+        <TextBlock HorizontalAlignment="Left" Margin="10,284,0,0" TextWrapping="Wrap" Text="https://github.com/andreaschiavinato/jupyter.net" VerticalAlignment="Top" Width="294" Foreground="White" TouchUp="TextBlock_TouchUp" MouseUp="TextBlock_MouseUp">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                    <Style.Triggers>
+                        <Trigger Property ="IsMouseOver" Value="True">
+                            <Setter Property= "TextBlock.TextDecorations" Value="Underline"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
     </Grid>
 </Window>

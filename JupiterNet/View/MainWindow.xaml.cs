@@ -2,6 +2,7 @@
 using Microsoft.Win32;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.IO;
 using System.Windows;
 
 namespace JupiterNet.View
@@ -73,6 +74,17 @@ namespace JupiterNet.View
                     inputCommand.Clear();
                     NotebookView.IsEnabled = true;
                 });
+
+        public string AskPythonFolder()
+        {
+            var openFileDialog = new OpenFileDialog()
+            {
+                Filter = "python.exe|python.exe"
+            };
+            return (openFileDialog.ShowDialog() ?? false)
+                ? Path.GetDirectoryName(openFileDialog.FileName)
+                : string.Empty;
+        }
 
         public string SelectKernel(NotebookEditorVM viewModel) =>
             Application.Current.Dispatcher.Invoke(() =>

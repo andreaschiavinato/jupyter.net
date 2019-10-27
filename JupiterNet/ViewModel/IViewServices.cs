@@ -5,6 +5,7 @@ namespace JupiterNet.ViewModel
     public interface IViewServices
     {
         void ShowError(string v);
+        string AskPythonFolder();
         string SelectKernel(NotebookEditorVM viewModel);
         string GetInput();
         string PeekInput();

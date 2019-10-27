@@ -3,6 +3,7 @@ using JupiterNetClient.Nbformat;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Configuration;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -14,6 +15,8 @@ namespace JupiterNet.ViewModel
 {
     public class NotebookEditorVM : ViewModelBase
     {
+        private const string PYTHON_FOLDER_SETTING = "PYTHON_FOLDER";
+
         public class KernelItem
         {
             public string Key { get; set; }
@@ -121,50 +124,24 @@ namespace JupiterNet.ViewModel
             UpdateStatus("Initiating");
             OnPropertyChanged(nameof(KernelStatus));
 
-            _client = new JupyterClient();
-
-            _client.OnStatus += (_, kernelState) => {
-                _kernelState = kernelState;
-                _currentDisaptcher.Invoke(CommandManager.InvalidateRequerySuggested);
-                UpdateStatus(CultureInfo.CurrentCulture.TextInfo.ToTitleCase(kernelState.ToString()));
-            };
-
-            _client.OnOutputMessage += (_, message) =>
+            try
             {
-                switch (message.header.msg_type)
-                {
-                    case JupyterMessage.Header.MsgType.execute_input:
-                        _notebookModel.FindParentCell(message).UpdateFromExecuteInputMessage(message);
-                        break;
+                var pythonFolder = GetSetting(PYTHON_FOLDER_SETTING);
+                _client = new JupyterClient(pythonFolder);
+            }
+            catch (Exception)
+            {
+                //assuming python.exe not found, ask python.exe location
+                _services.ShowError(@"Python directory not found. You will be asked to select the location of the file python.exe.");
+                var pythonFodler = _services.AskPythonFolder();
+                if (string.IsNullOrEmpty(pythonFodler))
+                    throw new Exception("Python folder not provided");
+                _client = new JupyterClient(pythonFodler);
+                SetSetting(PYTHON_FOLDER_SETTING, pythonFodler);
+            }
 
-                    case JupyterMessage.Header.MsgType.execute_result:
-                    case JupyterMessage.Header.MsgType.display_data:
-                    case JupyterMessage.Header.MsgType.stream:
-                    case JupyterMessage.Header.MsgType.error:
-                        _notebookModel.FindParentCell(message).AddOutputFromMessage(message);                        
-                        break;
-
-                    case JupyterMessage.Header.MsgType.execute_reply:
-                        var parentCell = _notebookModel.FindParentCell(message);
-                        CurrentNotebook.SetCellExecutionCompleted(parentCell, message.content as JupyterMessage.ExecuteReplyContent);
-                        break;
-
-                    case JupyterMessage.Header.MsgType.complete_reply:
-                        var content = message.content as JupyterMessage.CompleteReply;
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            CompleteWords.Clear();
-                            content.matches.ForEach(s => CompleteWords.Add(s));
-                        });
-                        _services.SetCodeCompletion(content.matches, content.cursor_start, content.cursor_end);
-                        OnPropertyChanged(nameof(CompleteWords));
-                        break;
-
-                    default:
-                        break;
-                }
-            };
-
+            _client.OnStatus += HandleStatusMessage;
+            _client.OnOutputMessage += HandleOutputMessage;
             _client.OnInputRequest += AskInput;
 
             Task.Run(() =>
@@ -198,6 +175,49 @@ namespace JupiterNet.ViewModel
                 UpdateStatus("Ready");
                 InitializationCompleted?.Invoke(this, null);
             });
+        }
+
+        private void HandleStatusMessage(object sender, KernelState kernelState)
+        {
+            _kernelState = kernelState;
+            _currentDisaptcher.Invoke(CommandManager.InvalidateRequerySuggested);
+            UpdateStatus(CultureInfo.CurrentCulture.TextInfo.ToTitleCase(kernelState.ToString()));
+        }
+
+        private void HandleOutputMessage(object sender, JupyterMessage message)
+        {
+            switch (message.header.msg_type)
+            {
+                case JupyterMessage.Header.MsgType.execute_input:
+                    _notebookModel.FindParentCell(message).UpdateFromExecuteInputMessage(message);
+                    break;
+
+                case JupyterMessage.Header.MsgType.execute_result:
+                case JupyterMessage.Header.MsgType.display_data:
+                case JupyterMessage.Header.MsgType.stream:
+                case JupyterMessage.Header.MsgType.error:
+                    _notebookModel.FindParentCell(message).AddOutputFromMessage(message);
+                    break;
+
+                case JupyterMessage.Header.MsgType.execute_reply:
+                    var parentCell = _notebookModel.FindParentCell(message);
+                    CurrentNotebook.SetCellExecutionCompleted(parentCell, message.content as JupyterMessage.ExecuteReplyContent);
+                    break;
+
+                case JupyterMessage.Header.MsgType.complete_reply:
+                    var content = message.content as JupyterMessage.CompleteReply;
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        CompleteWords.Clear();
+                        content.matches.ForEach(s => CompleteWords.Add(s));
+                    });
+                    _services.SetCodeCompletion(content.matches, content.cursor_start, content.cursor_end);
+                    OnPropertyChanged(nameof(CompleteWords));
+                    break;
+
+                default:
+                    break;
+            }
         }
 
         public void OnClosing(object sender, CancelEventArgs e)
@@ -469,6 +489,27 @@ namespace JupiterNet.ViewModel
         {
             OnPropertyChanged(nameof(DocumentCompleteFileName));
             OnPropertyChanged(nameof(DocumentTitle));
+        }
+
+        private static string GetSetting(string key)
+        {
+            return ConfigurationManager.AppSettings[key];
+        }
+
+        private static void SetSetting(string key, string value)
+        {
+            var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            var settings = configFile.AppSettings.Settings;
+            if (settings[key] == null)
+            {
+                settings.Add(key, value);
+            }
+            else
+            {
+                settings[key].Value = value;
+            }
+            configFile.Save(ConfigurationSaveMode.Modified, true);
+            ConfigurationManager.RefreshSection(configFile.AppSettings.SectionInformation.Name);
         }
     }
 }
