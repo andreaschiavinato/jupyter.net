@@ -1,5 +1,5 @@
-﻿using JupiterNetClient;
-using JupiterNetClient.Nbformat;
+﻿using JupyterNetClient;
+using JupyterNetClient.Nbformat;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -10,7 +10,7 @@ namespace JupiterNet.ViewModel
 {
     public class NotebookVM : ViewModelBase
     {
-        public enum CellEveluationStatus
+        public enum CellEvaluationStatus
         {
             NotStarted,
             Running,
@@ -31,7 +31,7 @@ namespace JupiterNet.ViewModel
         {
             public string Id { get; set; }
             public string Value { get; set; }
-            public CellEveluationStatus Status { get; internal set; } = CellEveluationStatus.NotStarted;
+            public CellEvaluationStatus Status { get; internal set; } = CellEvaluationStatus.NotStarted;
             public override bool CanExecute => AttachedCell is CodeCell;
         }
 
@@ -81,7 +81,7 @@ namespace JupiterNet.ViewModel
             var cellVm = Cells.First(item => item.AttachedCell == cell);
             if (cellVm is InputCellVM inputCellVM)
             {
-                inputCellVM.Status = CellEveluationStatus.Running;
+                inputCellVM.Status = CellEvaluationStatus.Running;
                 inputCellVM.OnPropertyChanged(string.Empty);
             }
         }
@@ -91,7 +91,7 @@ namespace JupiterNet.ViewModel
             var cellVm = Cells.First(item => item.AttachedCell == cell);
             if (cellVm is InputCellVM inputCellVM)
             {
-                inputCellVM.Status = content.status == "ok" ? CellEveluationStatus.Completed : CellEveluationStatus.Error;
+                inputCellVM.Status = content.status == "ok" ? CellEvaluationStatus.Completed : CellEvaluationStatus.Error;
                 inputCellVM.OnPropertyChanged(string.Empty);
             }
         }
@@ -134,7 +134,7 @@ namespace JupiterNet.ViewModel
 
         private void DeletedCellOutput(object sender, (CodeCell cell, CellOutput output) e)
         {
-            //if outpout == null ==> deleted all outputs of cell
+            //if output == null ==> deleted all outputs of cell
             if (e.output == null)
             {
                 var itemsToRemove = Cells.Where(c => c.AttachedCell == e.cell && c.AttachedCellOutput != null).ToList();
@@ -227,23 +227,27 @@ namespace JupiterNet.ViewModel
 
         private void MovedCell(object sender, (int oldModelIndex, CellBase oldCell, int newModelIndex, CellBase newCell) e)
         {
-            int oldVmIndex = -1;
-            int oldVmLastIndex = -1;
-            int newVmIndex = -1;
-            int newVmLastIndex = -1;
+            var oldVmIndex = -1;
+            var oldVmLastIndex = -1;
+            var newVmIndex = -1;
+            var newVmLastIndex = -1;
             for (var i = 0; i < Cells.Count; i++)
             {
                 var attachedCell = Cells[i].AttachedCell;
                 if (attachedCell == e.oldCell)
                 {
                     if (oldVmIndex == -1)
+                    {
                         oldVmIndex = i;
+                    }
                     oldVmLastIndex = i;
                 }
                 if (attachedCell == e.newCell)
                 {
                     if (newVmIndex == -1)
+                    {
                         newVmIndex = i;
+                    }
                     newVmLastIndex = i;
                 }
             }

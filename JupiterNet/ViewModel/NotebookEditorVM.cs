@@ -1,5 +1,5 @@
-﻿using JupiterNetClient;
-using JupiterNetClient.Nbformat;
+﻿using JupyterNetClient;
+using JupyterNetClient.Nbformat;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -15,7 +15,7 @@ namespace JupiterNet.ViewModel
 {
     public class NotebookEditorVM : ViewModelBase
     {
-        private const string PYTHON_FOLDER_SETTING = "PYTHON_FOLDER";
+        private const string PythonFolderSetting = "PYTHON_FOLDER";
 
         public class KernelItem
         {
@@ -75,15 +75,15 @@ namespace JupiterNet.ViewModel
         public RelayCommand AboutCommand { get; }
 
         private JupyterClient _client;
-        private IViewServices _services;
-        private bool _multiline;
-        private Dispatcher _currentDisaptcher;
-        private KernelState? _kernelState;
+        private readonly Dispatcher _currentDispatcher;
         private bool _interruptRunAll;
-
+        private bool _multiline;
+        private KernelState? _kernelState;
+        private readonly IViewServices _services;
+        
         public NotebookEditorVM(IViewServices dialogs)
         {
-            _currentDisaptcher = Application.Current.Dispatcher;
+            _currentDispatcher = Application.Current.Dispatcher;
             _services = dialogs;
             EditMode = false;
 
@@ -126,18 +126,20 @@ namespace JupiterNet.ViewModel
 
             try
             {
-                var pythonFolder = GetSetting(PYTHON_FOLDER_SETTING);
+                var pythonFolder = GetSetting(PythonFolderSetting);
                 _client = new JupyterClient(pythonFolder);
             }
             catch (Exception)
             {
                 //assuming python.exe not found, ask python.exe location
                 _services.ShowError(@"Python directory not found. You will be asked to select the location of the file python.exe.");
-                var pythonFodler = _services.AskPythonFolder();
-                if (string.IsNullOrEmpty(pythonFodler))
+                var pythonFolder = _services.AskPythonFolder();
+                if (string.IsNullOrEmpty(pythonFolder))
+                {
                     throw new Exception("Python folder not provided");
-                _client = new JupyterClient(pythonFodler);
-                SetSetting(PYTHON_FOLDER_SETTING, pythonFodler);
+                }
+                _client = new JupyterClient(pythonFolder);
+                SetSetting(PythonFolderSetting, pythonFolder);
             }
 
             _client.OnStatus += HandleStatusMessage;
@@ -148,22 +150,26 @@ namespace JupiterNet.ViewModel
             {
                 var kernels = _client.GetKernels();
                 var kernelId = string.Empty;
-                if (kernels.Count == 0)
+                switch (kernels.Count)
                 {
-                    throw new Exception("No kernels found");
-                }
-                else if (kernels.Count == 1)
-                {
-                    kernelId = kernels.Keys.First();
-                }
-                else
-                {
-                    Kernels = new ObservableCollection<KernelItem>(
-                        kernels.Select(a => new KernelItem { Key = a.Key, Name = a.Value.spec.display_name }));
-                    kernelId = _services.SelectKernel(this);
-                    if (string.IsNullOrEmpty(kernelId))
+                    case 0:
+                        throw new Exception("No kernels found");
+
+                    case 1:
+                        kernelId = kernels.Keys.First();
+                        break;
+
+                    default:
                     {
-                        throw new Exception("No kernel selected");
+                        Kernels = new ObservableCollection<KernelItem>(
+                            kernels.Select(a => new KernelItem { Key = a.Key, Name = a.Value.spec.display_name }));
+                        kernelId = _services.SelectKernel(this);
+                        if (string.IsNullOrEmpty(kernelId))
+                        {
+                            throw new Exception("No kernel selected");
+                        }
+
+                        break;
                     }
                 }
 
@@ -171,7 +177,7 @@ namespace JupiterNet.ViewModel
 
                 KernelName = kernels[kernelId].spec.display_name;
                 OnPropertyChanged(nameof(KernelName));
-                _currentDisaptcher.Invoke(() => NewNotebook());
+                _currentDispatcher.Invoke(NewNotebook);
                 UpdateStatus("Ready");
                 InitializationCompleted?.Invoke(this, null);
             });
@@ -180,7 +186,7 @@ namespace JupiterNet.ViewModel
         private void HandleStatusMessage(object sender, KernelState kernelState)
         {
             _kernelState = kernelState;
-            _currentDisaptcher.Invoke(CommandManager.InvalidateRequerySuggested);
+            _currentDispatcher.Invoke(CommandManager.InvalidateRequerySuggested);
             UpdateStatus(CultureInfo.CurrentCulture.TextInfo.ToTitleCase(kernelState.ToString()));
         }
 
@@ -205,7 +211,7 @@ namespace JupiterNet.ViewModel
                     break;
 
                 case JupyterMessage.Header.MsgType.complete_reply:
-                    var content = message.content as JupyterMessage.CompleteReply;
+                    var content = (JupyterMessage.CompleteReply) message.content;
                     Application.Current.Dispatcher.Invoke(() =>
                     {
                         CompleteWords.Clear();
@@ -216,7 +222,9 @@ namespace JupiterNet.ViewModel
                     break;
 
                 default:
+                {
                     break;
+                }
             }
         }
 
@@ -253,7 +261,7 @@ namespace JupiterNet.ViewModel
                 return;
             }
             _notebookModel = new Notebook(_client.KernelSpec, _client.KernelInfo.language_info);
-            _currentDisaptcher.Invoke(() => CurrentNotebook = new NotebookVM(_notebookModel, _currentDisaptcher));
+            _currentDispatcher.Invoke(() => CurrentNotebook = new NotebookVM(_notebookModel, _currentDispatcher));
             OnPropertyChanged(nameof(CurrentNotebook));
             DocumentNameChanged();
         }
@@ -270,12 +278,13 @@ namespace JupiterNet.ViewModel
                 try
                 {
                     _notebookModel = Notebook.ReadFromFile(fileName);
-                    CurrentNotebook = new NotebookVM(_notebookModel, _currentDisaptcher);
+                    CurrentNotebook = new NotebookVM(_notebookModel, _currentDispatcher);
                     OnPropertyChanged(nameof(CurrentNotebook));
                     DocumentNameChanged();
                 }
-                catch (Exception e) //todo
+                catch (Exception e)
                 {
+                    //TODO display proper error message
                     Console.WriteLine(e);
                 }
             }

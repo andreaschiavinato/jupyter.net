@@ -36,15 +36,15 @@
                 </Grid>
             </Border>
             <DataTemplate.Triggers>
-                <DataTrigger Binding="{Binding Path=Status}" Value="{x:Static viewModel:NotebookVM+CellEveluationStatus.Running}">
+                <DataTrigger Binding="{Binding Path=Status}" Value="{x:Static viewModel:NotebookVM+CellEvaluationStatus.Running}">
                     <Setter TargetName="StatusText" Property="Foreground" Value="orange" />
                 </DataTrigger>
 
-                <DataTrigger Binding="{Binding Path=Status}" Value="{x:Static viewModel:NotebookVM+CellEveluationStatus.Completed}">
+                <DataTrigger Binding="{Binding Path=Status}" Value="{x:Static viewModel:NotebookVM+CellEvaluationStatus.Completed}">
                     <Setter TargetName="StatusText" Property="Foreground" Value="green" />
                 </DataTrigger>
 
-                <DataTrigger Binding="{Binding Path=Status}" Value="{x:Static viewModel:NotebookVM+CellEveluationStatus.Error}">
+                <DataTrigger Binding="{Binding Path=Status}" Value="{x:Static viewModel:NotebookVM+CellEvaluationStatus.Error}">
                     <Setter TargetName="StatusText" Property="Foreground" Value="red" />
                 </DataTrigger>
             </DataTemplate.Triggers>

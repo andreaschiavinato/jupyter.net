@@ -17,7 +17,7 @@ namespace JupiterNet.ViewModel
         string OpenFile();
         string AskFileName();
         DialogResult AskSaveDocument(string documentName);
-        void SetCodeCompletion(List<string> matches, int cursor_start, int cursor_end);
+        void SetCodeCompletion(List<string> matches, int cursorStart, int cursorEnd);
         void ShowAbout();
     }
 }
