@@ -1,9 +1,9 @@
 ﻿using JupyterNetClient;
 using JupyterNetClient.Nbformat;
+using Microsoft.Win32;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Configuration;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,6 +16,7 @@ namespace JupiterNet.ViewModel
     public class NotebookEditorVM : ViewModelBase
     {
         private const string PythonFolderSetting = "PYTHON_FOLDER";
+        private const string REGISTRY_KEY = @"SOFTWARE\jupyternet";
 
         public class KernelItem
         {
@@ -502,23 +503,17 @@ namespace JupiterNet.ViewModel
 
         private static string GetSetting(string key)
         {
-            return ConfigurationManager.AppSettings[key];
+            var registryKey = Registry.CurrentUser.CreateSubKey(REGISTRY_KEY);
+            var result = registryKey.GetValue(key)?.ToString() ?? "";
+            registryKey.Close();
+            return result;
         }
 
         private static void SetSetting(string key, string value)
         {
-            var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-            var settings = configFile.AppSettings.Settings;
-            if (settings[key] == null)
-            {
-                settings.Add(key, value);
-            }
-            else
-            {
-                settings[key].Value = value;
-            }
-            configFile.Save(ConfigurationSaveMode.Modified, true);
-            ConfigurationManager.RefreshSection(configFile.AppSettings.SectionInformation.Name);
+            var registryKey = Registry.CurrentUser.CreateSubKey(REGISTRY_KEY);
+            registryKey.SetValue(key, value);
+            registryKey.Close();
         }
     }
 }
