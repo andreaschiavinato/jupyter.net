@@ -5,6 +5,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -128,6 +129,7 @@ namespace JupiterNet.ViewModel
             try
             {
                 var pythonFolder = GetSetting(PythonFolderSetting);
+                SetEnvironmentVariables(@"PATH", pythonFolder);
                 _client = new JupyterClient(pythonFolder);
             }
             catch (Exception)
@@ -182,6 +184,33 @@ namespace JupiterNet.ViewModel
                 UpdateStatus("Ready");
                 InitializationCompleted?.Invoke(this, null);
             });
+        }
+
+        private void SetEnvironmentVariables(string variable, string value)
+        {
+            var target = EnvironmentVariableTarget.Process;
+            var currentValue = Environment.GetEnvironmentVariable(variable, target);
+            if (currentValue != null)
+            {
+                var splitValues = currentValue.Split(Path.PathSeparator);
+                if (splitValues.Any(s => !string.IsNullOrEmpty(s) && Path.GetFullPath(s) == Path.GetFullPath(value)))
+                {
+                    return;
+                }
+
+                var combinedVariables = Path.GetFullPath(value) + Path.PathSeparator + currentValue;
+                Environment.SetEnvironmentVariable(
+                    variable,
+                    combinedVariables,
+                    target);
+            }
+            else
+            {
+                Environment.SetEnvironmentVariable(
+                    variable,
+                    Path.GetFullPath(value),
+                    target);
+            }
         }
 
         private void HandleStatusMessage(object sender, KernelState kernelState)
